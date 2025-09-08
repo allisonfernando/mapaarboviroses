@@ -16,7 +16,9 @@ if(navigator.geolocation){
   }, ()=>{ map.setView([currentLat,currentLon],14); });
 }else{ map.setView([currentLat,currentLon],14); }
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution:'&copy; OpenStreetMap' }).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'&copy; OpenStreetMap'
+}).addTo(map);
 
 // Ícones
 const icons = {
@@ -45,13 +47,18 @@ const cardTitle = document.getElementById('card-title');
 const cardDesc = document.getElementById('card-desc');
 const cardDate = document.getElementById('card-date');
 
-document.getElementById('menu-toggle').addEventListener('click', ()=>document.getElementById('menu-panel').classList.toggle('hidden'));
+document.getElementById('menu-toggle').addEventListener('click', toggleMenu);
 document.getElementById('add-paciente').addEventListener('click', ()=>prepareAdd('arbovirose'));
 document.getElementById('add-terreno').addEventListener('click', ()=>prepareAdd('terreno'));
 document.getElementById('city-btn').addEventListener('click', goToCity);
 document.getElementById('locate-btn').addEventListener('click', markCurrentLocation);
 document.querySelector('#info-card .close-card').addEventListener('click', ()=>infoCard.style.display='none');
 document.getElementById('remove-btn').addEventListener('click', removeMarker);
+
+// Funções
+function toggleMenu(){
+  document.getElementById('menu-panel').classList.toggle('hidden');
+}
 
 function prepareAdd(type){
   markerType=type;
@@ -99,7 +106,6 @@ function removeMarker(){
   }
 }
 
-// Clique no mapa
 map.on('click', function(e){
   if(!addMode) return;
   if(markerType==='arbovirose'){
@@ -126,7 +132,6 @@ map.on('click', function(e){
   }
 });
 
-// Auxiliares
 function goToCity(){
   const city=document.getElementById("city-input").value;
   if(!city) return;
@@ -135,7 +140,8 @@ function goToCity(){
   .then(data=>{
     if(data.length>0){ 
       const {lat,lon}=data[0]; 
-      map.setView([parseFloat(lat),parseFloat(lon)],15); 
+      currentLat=parseFloat(lat); currentLon=parseFloat(lon); 
+      map.setView([currentLat,currentLon],15); 
     } else alert("Cidade não encontrada.");
   });
 }
