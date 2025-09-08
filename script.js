@@ -1,94 +1,158 @@
+// Variáveis
 let markerType='arbovirose';
 let markers=[];
-let heatPoints=[];
 let addMode=false;
-const WEATHER_API_KEY="9ed9d4d9d2204eadb26114413252708";
 let currentLat=-23.3805, currentLon=-53.2936;
+let selectedMarker=null;
+let minhaPosicaoMarker=null;
 
+// Inicializa mapa
 const map=L.map('map');
 if(navigator.geolocation){
-  navigator.geolocation.getCurrentPosition(pos=>{currentLat=pos.coords.latitude; currentLon=pos.coords.longitude; map.setView([currentLat,currentLon],14); updateWeather();}, ()=>{ map.setView([currentLat,currentLon],14); updateWeather(); });
-}else{ map.setView([currentLat,currentLon],14); updateWeather(); }
+  navigator.geolocation.getCurrentPosition(pos=>{
+    currentLat=pos.coords.latitude;
+    currentLon=pos.coords.longitude;
+    map.setView([currentLat,currentLon],14);
+  }, ()=>{ map.setView([currentLat,currentLon],14); });
+}else{ map.setView([currentLat,currentLon],14); }
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution:'&copy; OpenStreetMap' }).addTo(map);
 
-let heatLayer = L.heatLayer(heatPoints, {radius: 25, blur: 15, maxZoom: 17}).addTo(map);
+// Ícones
+const icons = {
+  arbovirose: L.icon({
+    iconUrl:'https://cdn-icons-png.flaticon.com/512/3135/3135715.png', 
+    iconSize:[36,36], iconAnchor:[18,36]
+  }),
+  terreno: L.divIcon({
+    html: "<div style='font-size:20px; color:red;'>❌</div>",
+    className: "x-icon",
+    iconSize: [20,20],
+    iconAnchor: [10,10]
+  }),
+  localizacao: L.divIcon({
+    html: "<div style='font-size:22px; color:blue;'>📍</div>",
+    className: "posicao-icon",
+    iconSize: [22,22],
+    iconAnchor: [11,11]
+  })
+};
 
-function enableAdd(type){ markerType=type; addMode=true; alert('Clique no mapa para adicionar o marcador de '+(type==='arbovirose'?'Paciente com Arbovirose':'Terreno Abandonado')); }
+// Elementos do DOM
+const infoCard = document.getElementById('info-card');
+const cardImg = document.getElementById('card-img');
+const cardTitle = document.getElementById('card-title');
+const cardDesc = document.getElementById('card-desc');
+const cardDate = document.getElementById('card-date');
 
-function addMarker(latlng,imageDataUrl){
-  let iconColor=markerType==='arbovirose'?'orange':'red';
-  let label=markerType==='arbovirose'?'🧑‍⚕️ Paciente com Arbovirose':'⚠️ Terreno Abandonado';
-  const marker=L.circleMarker(latlng,{radius:10, fillColor:iconColor, fillOpacity:0.9, color:'#000', weight:1}).addTo(map);
-  let tooltipContent=`<strong>${label}</strong><br>`;
-  if(imageDataUrl) tooltipContent+=`<img src="${imageDataUrl}" class="tooltip-img"/>`;
-  marker.bindTooltip(tooltipContent,{direction:'top'});
-  marker.on('click', e=>{ e.originalEvent.stopPropagation(); if(confirm('Deseja remover este marcador?')){ map.removeLayer(marker); markers.splice(markers.indexOf(marker),1); heatPoints.splice(heatPoints.indexOf([latlng.lat, latlng.lng]),1); heatLayer.setLatLngs(heatPoints); } });
-  marker.on('mouseover', ()=>marker.openTooltip());
-  marker.on('mouseout', ()=>marker.closeTooltip());
-  markers.push(marker);
-  // Adiciona no heatmap
-  heatPoints.push([latlng.lat, latlng.lng, 0.5]); // peso 0.5
-  heatLayer.setLatLngs(heatPoints);
+document.getElementById('menu-toggle').addEventListener('click', ()=>document.getElementById('menu-panel').classList.toggle('hidden'));
+document.getElementById('add-paciente').addEventListener('click', ()=>prepareAdd('arbovirose'));
+document.getElementById('add-terreno').addEventListener('click', ()=>prepareAdd('terreno'));
+document.getElementById('city-btn').addEventListener('click', goToCity);
+document.getElementById('locate-btn').addEventListener('click', markCurrentLocation);
+document.querySelector('#info-card .close-card').addEventListener('click', ()=>infoCard.style.display='none');
+document.getElementById('remove-btn').addEventListener('click', removeMarker);
+
+function prepareAdd(type){
+  markerType=type;
+  addMode=true;
+  if(type==='arbovirose'){
+    document.getElementById("paciente-desc").style.display="block";
+    alert("Clique no mapa para marcar o paciente.");
+  } else {
+    document.getElementById("paciente-desc").style.display="none";
+    alert("Clique no mapa para marcar o terreno.");
+  }
 }
 
+function addMarker(latlng,imageDataUrl,desc, typeOverride=null){
+  const icon = typeOverride ? icons[typeOverride] : icons[markerType];
+  const label = typeOverride==='localizacao' ? '📍 Minha Posição' :
+                markerType==='arbovirose' ? '🧑‍⚕️ Paciente' : '❌ Terreno';
+  const timestamp = new Date().toLocaleString('pt-BR',{hour12:false});
+  
+  const marker = L.marker(latlng,{icon:icon}).addTo(map);
+  marker.data = { type: label, image: imageDataUrl || icon.options.iconUrl, desc: desc || '', date: timestamp };
+  
+  marker.on('click', e=>{
+    e.originalEvent.stopPropagation();
+    selectedMarker=marker;
+    showCard(marker.data);
+  });
+  markers.push(marker);
+}
+
+function showCard(data){
+  cardTitle.textContent = data.type;
+  cardImg.src = data.image;
+  cardDesc.textContent = data.desc || (data.type==='🧑‍⚕️ Paciente' ? 'Paciente marcado.' : 'Terreno identificado.');
+  cardDate.textContent = `Data/Hora: ${data.date}`;
+  infoCard.style.display='flex';
+}
+
+function removeMarker(){
+  if(selectedMarker){
+    map.removeLayer(selectedMarker);
+    markers = markers.filter(m=>m!==selectedMarker);
+    infoCard.style.display='none';
+    selectedMarker=null;
+  }
+}
+
+// Clique no mapa
 map.on('click', function(e){
   if(!addMode) return;
-  const fileInput=document.getElementById('image-upload');
-  fileInput.click();
-  fileInput.onchange=function(){
-    const file=fileInput.files[0];
-    if(file){ const reader=new FileReader(); reader.onload=function(evt){ addMarker(e.latlng, evt.target.result); addMode=false; }; reader.readAsDataURL(file); }
-    else { addMarker(e.latlng,null); addMode=false; }
-    fileInput.value='';
-  };
+  if(markerType==='arbovirose'){
+    const desc = document.getElementById("paciente-desc").value;
+    addMarker(e.latlng, null, desc);
+    addMode=false;
+    document.getElementById("paciente-desc").value="";
+    document.getElementById("paciente-desc").style.display="none";
+  } else {
+    const fileInput=document.getElementById('image-upload');
+    fileInput.click();
+    fileInput.onchange=function(){
+      const file=fileInput.files[0];
+      if(file){ 
+        const reader=new FileReader(); 
+        reader.onload=function(evt){ 
+          addMarker(e.latlng, evt.target.result, "Terreno identificado."); 
+          addMode=false; 
+        }; 
+        reader.readAsDataURL(file); 
+      } else { addMarker(e.latlng,null,"Terreno identificado."); addMode=false; }
+      fileInput.value='';
+    };
+  }
 });
 
+// Auxiliares
 function goToCity(){
   const city=document.getElementById("city-input").value;
   if(!city) return;
   fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city+', Paraná, Brasil')}`)
   .then(res=>res.json())
   .then(data=>{
-    if(data.length>0){ const {lat,lon}=data[0]; currentLat=parseFloat(lat); currentLon=parseFloat(lon); map.setView([currentLat,currentLon],15); updateWeather(); }
-    else alert("Cidade não encontrada.");
+    if(data.length>0){ 
+      const {lat,lon}=data[0]; 
+      map.setView([parseFloat(lat),parseFloat(lon)],15); 
+    } else alert("Cidade não encontrada.");
   });
 }
 
-// ======= Weather =======
-function updateWeather(){
-  fetch(`https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_API_KEY}&q=${currentLat},${currentLon}&days=3&lang=pt`)
-  .then(res=>res.json())
-  .then(data=>{
-    const bar=document.getElementById('weather-bar'); bar.innerHTML='';
-    const rainContainer=document.getElementById('rain'); rainContainer.innerHTML='';
-    data.forecast.forecastday.forEach((day,i)=>{
-      const div=document.createElement('div'); div.className='weather-day';
-      const dateParts=day.date.split('-'); const formattedDate=`${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
-      div.innerHTML=`<div class="date">${formattedDate}</div>
-      <img src="https:${day.day.condition.icon}" class="weather-icon" alt="${day.day.condition.text}"/>
-      <div class="temp">${Math.round(day.day.avgtemp_c)}°C</div>
-      <div class="condition">${day.day.condition.text}</div>`;
-      bar.appendChild(div);
+function markCurrentLocation(){
+  if (navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(pos=>{
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      map.setView([lat, lng],16);
 
-      // Animação chuva
-      if(day.day.daily_chance_of_rain>50){
-        for(let j=0;j<50;j++){
-          const drop=document.createElement('div'); drop.className='rain-drop';
-          drop.style.left=Math.random()*window.innerWidth+'px';
-          drop.style.animationDuration=(0.5+Math.random()*0.5)+'s';
-          drop.style.animationDelay=(Math.random()*2)+'s';
-          rainContainer.appendChild(drop);
-        }
-        document.querySelector('.cloud').style.display='block';
-        document.querySelector('.cloud2').style.display='block';
-        document.querySelector('.sun').style.display='none';
-      } else {
-        document.querySelector('.cloud').style.display='none';
-        document.querySelector('.cloud2').style.display='none';
-        document.querySelector('.sun').style.display='block';
-      }
-    });
-  })
-  .catch(err=>console.error(err));
+      if (minhaPosicaoMarker) map.removeLayer(minhaPosicaoMarker);
+
+      minhaPosicaoMarker = L.marker([lat, lng], {icon:icons.localizacao})
+        .addTo(map)
+        .bindPopup("Você está aqui")
+        .openPopup();
+    }, ()=>{ alert("Não foi possível obter sua localização."); });
+  } else { alert("Geolocalização não suportada."); }
 }
