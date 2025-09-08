@@ -1,34 +1,44 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Mapa de Arboviroses com Heatmap</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="style.css"/>
+<meta charset="UTF-8">
+<title>GeoSaúde - Controle de Arboviroses</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-  <header>Colégio Estadual Cleoracy Aparecida Gil</header>
 
-  <div class="controls">
-    <input id="city-input" type="text" placeholder="Digite sua cidade" />
-    <button onclick="goToCity()">Ir para a Cidade</button>
-    <button class="arbovirose" onclick="enableAdd('arbovirose')">🧑‍⚕️ Marcar Paciente com Arbovirose</button>
-    <button class="terreno" onclick="enableAdd('terreno')">⚠️ Marcar Terreno Abandonado</button>
-  </div>
-  <input type="file" id="image-upload" accept="image/*"/>
-  <div id="map"></div>
+<header>
+  <img src="cleoracy.png" alt="Logo Cleoracy"/>
+  GeoSaúde
+</header>
 
-  <div class="sun"></div>
-  <div class="cloud"></div>
-  <div class="cloud2"></div>
-  <div class="rain-container" id="rain"></div>
+<button id="menu-toggle">☰ Menu</button>
 
-  <div id="weather-bar"></div>
+<div class="controls hidden" id="menu-panel">
+  <input id="city-input" type="text" placeholder="Digite sua cidade" />
+  <button id="city-btn">🌆 Ir para a Cidade</button>
+  <button class="arbovirose" id="add-paciente">🧑‍⚕️ Marcar Paciente</button>
+  <textarea id="paciente-desc" placeholder="Descrição do paciente..." style="display:none;"></textarea>
+  <button class="terreno" id="add-terreno">⚠️ Marcar Terreno</button>
+</div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
-  <script src="script.js"></script>
+<input type="file" id="image-upload" accept="image/*"/>
+<div id="map"></div>
+<button id="locate-btn">📍 Minha Posição</button>
+
+<div id="info-card">
+  <button class="close-card">×</button>
+  <img id="card-img" src="" alt="Imagem"/>
+  <h3 id="card-title">Título</h3>
+  <p id="card-desc">Descrição</p>
+  <p id="card-date">Data/Hora</p>
+  <button id="remove-btn">🗑️ Remover marcador</button>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
